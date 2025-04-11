@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-
+//yes guurl
 public class Servidor {
     private static final int PORT = 12346;
     private static final String STORAGE_ROOT = "armazenamento";
