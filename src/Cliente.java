@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.Scanner;
 
 public class Cliente {
-    private static final String SERVER_ADDRESS = "localhost";
+    private static final String SERVER_ADDRESS = "localhost1";
     private static final int PORT = 12346;
     private static Scanner scanner = new Scanner(System.in);
 
