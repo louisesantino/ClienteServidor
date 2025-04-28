@@ -183,6 +183,12 @@ public class Servidor {
         private void uploadFile() throws IOException {
             dos.writeUTF("Digite o tipo de arquivo (pdf, jpg, txt):");
             String type = dis.readUTF().toLowerCase();
+
+            // VALIDAÇÃO DO TIPO:
+            if (!type.equals("pdf") && !type.equals("jpg") && !type.equals("txt")) {
+                dos.writeUTF("Erro: Tipo de arquivo inválido.");
+                return; // Interrompe o upload se for inválido
+            }
             dos.writeUTF("Digite o nome do arquivo:");
             String filename = dis.readUTF();
             long fileSize = dis.readLong();

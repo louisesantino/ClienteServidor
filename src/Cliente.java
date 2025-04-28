@@ -154,8 +154,15 @@ public class Cliente {
         System.out.println(input.readUTF()); // Pergunta tipo
         String tipoArquivo = scanner.next();
         output.writeUTF(tipoArquivo);
+        // Aguarda resposta do servidor após enviar tipo
+        String respostaTipo = input.readUTF();
+        if (respostaTipo.contains("Erro")) {
+            System.out.println(respostaTipo);
+            return; // Se deu erro no tipo, volta ao menu
+        }
 
-        System.out.println(input.readUTF()); // Pergunta nome
+        // Continua normalmente se o tipo for válido
+        System.out.println(respostaTipo); // Pergunta nome
         String nomeArquivo = scanner.next();
         output.writeUTF(nomeArquivo);
 
@@ -165,8 +172,9 @@ public class Cliente {
         File arquivo = new File(caminhoArquivo);
 
         if (!arquivo.exists() || !arquivo.isFile()) {
-            System.out.println("Arquivo não encontrado no caminho informado.");
             output.writeLong(0); // Informa que não existe arquivo
+            String respostaErro = input.readUTF();
+            System.out.println(respostaErro);
             return;
         }
 
