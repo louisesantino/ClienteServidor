@@ -2,66 +2,80 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
+
+
+ /// Este programa conecta a um servidor para realizar operações de:
+ /// Autenticação de usuário
+ /// Listagem de arquivos
+ /// Upload e download de arquivos
+
 public class Cliente {
-    private static final String SERVER_ADDRESS = "localhost1";
-    private static final int PORT = 12346;
+
+    /// Endereço IP ou nome do servidor
+    private static final String SERVER_ADDRESS = "localhost";
+    /// Porta para conexão com o servidor
+    private static final int SERVER_PORT = 12346;
+    /// Scanner para entrada de dados do usuário
     private static Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) {
-        try (Socket socket = new Socket(SERVER_ADDRESS, PORT);
-             DataInputStream dis = new DataInputStream(socket.getInputStream());
-             DataOutputStream dos = new DataOutputStream(socket.getOutputStream())) {
+        try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+             DataInputStream input = new DataInputStream(socket.getInputStream());
+             DataOutputStream output = new DataOutputStream(socket.getOutputStream())) {
 
-            // Autenticação
-            if (!authenticate(dis, dos)) {
+            // Realiza a autenticação do usuário
+            if (!realizarAutenticacao(input, output)) {
                 System.out.println("Falha na autenticação. Encerrando...");
                 return;
             }
 
             System.out.println("Autenticado com sucesso!");
 
-            // Menu principal
+            // Exibe o menu até o usuário escolher sair
             while (true) {
-                printMenu();
-                int option = scanner.nextInt();
-                dos.writeInt(option);
+                exibirMenu();
+                int opcao = scanner.nextInt();
+                output.writeInt(opcao);
 
-                switch (option) {
-                    case 1: // Listar arquivos
-                        listFiles(dis);
+                switch (opcao) {
+                    case 1:
+                        listarArquivosDisponiveis(input);
                         break;
-                    case 2: // Download
-                        downloadFile(dis, dos);
+                    case 2:
+                        fazerDownloadDeArquivo(input, output);
                         break;
-                    case 3: // Upload
-                        uploadFile(dis, dos);
+                    case 3:
+                        fazerUploadDeArquivo(input, output);
                         break;
-                    case 4: // Sair
+                    case 4:
                         System.out.println("Encerrando cliente...");
                         return;
                     default:
-                        System.out.println("Opção inválida!");
+                        System.out.println("Opção inválida. Tente novamente.");
                 }
             }
+
         } catch (IOException e) {
-            System.err.println("Erro no cliente: " + e.getMessage());
+            System.err.println("Erro ao se comunicar com o servidor: " + e.getMessage());
         }
     }
 
-    private static boolean authenticate(DataInputStream dis, DataOutputStream dos) throws IOException {
-        System.out.println(dis.readUTF());
+    ///Realiza a autenticação com o servidor.
+    private static boolean realizarAutenticacao(DataInputStream input, DataOutputStream output) throws IOException {
+        System.out.println(input.readUTF()); // Mensagem pedindo usuário
         String username = scanner.next();
-        dos.writeUTF(username);
+        output.writeUTF(username);
 
-        System.out.println(dis.readUTF());
+        System.out.println(input.readUTF()); // Mensagem pedindo senha
         String password = scanner.next();
-        dos.writeUTF(password);
+        output.writeUTF(password);
 
-        String response = dis.readUTF();
-        return response.equals("AUTENTICADO");
+        String resposta = input.readUTF();
+        return resposta.equalsIgnoreCase("AUTENTICADO");
     }
 
-    private static void printMenu() {
+    /// Exibe o menu principal de opções.
+    private static void exibirMenu() {
         System.out.println("\n==== MENU ====");
         System.out.println("1. Listar arquivos");
         System.out.println("2. Download de arquivo");
@@ -70,73 +84,112 @@ public class Cliente {
         System.out.print("Escolha uma opção: ");
     }
 
-    private static void listFiles(DataInputStream dis) throws IOException {
-        System.out.println("\n=== SEUS ARQUIVOS ===");
-        System.out.println(dis.readUTF());
+    /// Lista os arquivos disponíveis no servidor.
+    private static void listarArquivosDisponiveis(DataInputStream input) throws IOException {
+        System.out.println("\n=== ARQUIVOS DISPONÍVEIS ===");
+        String resposta = input.readUTF();
+
+        // Se a resposta for uma lista válida de arquivos, mostra ela
+        if (resposta.startsWith("PDF") || resposta.startsWith("JPG") || resposta.startsWith("TXT")) {
+            System.out.println(resposta);
+        } else {
+            // Caso seja uma mensagem de erro, não tentamos exibir a lista de arquivos
+            System.out.println("Erro ao listar arquivos. Tente novamente.");
+        }
     }
 
-    private static void downloadFile(DataInputStream dis, DataOutputStream dos) throws IOException {
-        System.out.println(dis.readUTF());
-        String type = scanner.next();
-        dos.writeUTF(type);
+     /// Faz o download de um arquivo do servidor.
+    private static void fazerDownloadDeArquivo(DataInputStream input, DataOutputStream output) throws IOException {
+        System.out.println(input.readUTF()); // Pergunta tipo
+        String tipoArquivo = scanner.next();
+        output.writeUTF(tipoArquivo);
 
-        System.out.println(dis.readUTF());
-        String filename = scanner.next();
-        dos.writeUTF(filename);
+        System.out.println(input.readUTF()); // Pergunta nome
+        String nomeArquivo = scanner.next();
+        output.writeUTF(nomeArquivo);
 
-        String response = dis.readUTF();
-        if (response.equals("ARQUIVO_NAO_ENCONTRADO")) {
+        String resposta = input.readUTF();
+        if (resposta.equals("ARQUIVO_NAO_ENCONTRADO")) {
             System.out.println("Arquivo não encontrado no servidor.");
             return;
         }
 
-        long fileSize = dis.readLong();
-        System.out.print("Digite o caminho para salvar o arquivo (incluindo nome do arquivo): ");
-        String savePath = scanner.next();
+        long tamanhoArquivo = input.readLong();
+        System.out.print("Digite o caminho para salvar o arquivo (com nome e extensão): ");
+        String caminhoSalvar = scanner.next();
 
-        try (FileOutputStream fos = new FileOutputStream(savePath)) {
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            long remaining = fileSize;
-            while (remaining > 0 &&
-                    (bytesRead = dis.read(buffer, 0, (int) Math.min(buffer.length, remaining))) != -1) {
-                fos.write(buffer, 0, bytesRead);
-                remaining -= bytesRead;
+        File arquivoDestino = new File(caminhoSalvar);
+
+        // Verifica se o diretório de destino existe antes de realizar o download
+        if (!arquivoDestino.getParentFile().exists()) {
+            System.out.println("Diretório não encontrado. Criando diretórios necessários...");
+            boolean dirsCriados = arquivoDestino.getParentFile().mkdirs(); // Cria diretórios
+            if (!dirsCriados) {
+                System.out.println("Falha ao criar diretórios. Verifique permissões.");
+                return;
             }
         }
 
-        System.out.println("Arquivo baixado com sucesso!");
+        // Tratamento do download
+        try (FileOutputStream fos = new FileOutputStream(arquivoDestino)) {
+            byte[] buffer = new byte[4096];
+            int bytesLidos;
+            long restante = tamanhoArquivo;
+
+            while (restante > 0 &&
+                    (bytesLidos = input.read(buffer, 0, (int) Math.min(buffer.length, restante))) != -1) {
+                fos.write(buffer, 0, bytesLidos);
+                restante -= bytesLidos;
+            }
+
+            System.out.println("Arquivo baixado com sucesso em: " + arquivoDestino.getAbsolutePath());
+
+        } catch (IOException e) {
+            System.err.println("Erro ao salvar o arquivo: " + e.getMessage());
+        }
     }
 
-    private static void uploadFile(DataInputStream dis, DataOutputStream dos) throws IOException {
-        System.out.println(dis.readUTF());
-        String type = scanner.next();
-        dos.writeUTF(type);
+    ///Faz o upload de um arquivo para o servidor.
+    private static void fazerUploadDeArquivo(DataInputStream input, DataOutputStream output) throws IOException {
+        System.out.println(input.readUTF()); // Pergunta tipo
+        String tipoArquivo = scanner.next();
+        output.writeUTF(tipoArquivo);
 
-        System.out.println(dis.readUTF());
-        String filename = scanner.next();
-        dos.writeUTF(filename);
+        System.out.println(input.readUTF()); // Pergunta nome
+        String nomeArquivo = scanner.next();
+        output.writeUTF(nomeArquivo);
 
         System.out.print("Digite o caminho completo do arquivo a ser enviado: ");
-        String filePath = scanner.next();
-        File file = new File(filePath);
+        String caminhoArquivo = scanner.next();
 
-        if (!file.exists()) {
-            System.out.println("Arquivo não encontrado localmente.");
-            dos.writeLong(0);
+        File arquivo = new File(caminhoArquivo);
+
+        if (!arquivo.exists() || !arquivo.isFile()) {
+            System.out.println("Arquivo não encontrado no caminho informado.");
+            output.writeLong(0); // Informa que não existe arquivo
             return;
         }
 
-        dos.writeLong(file.length());
+        output.writeLong(arquivo.length());
 
-        try (FileInputStream fis = new FileInputStream(file)) {
+        try (FileInputStream fis = new FileInputStream(arquivo)) {
             byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                dos.write(buffer, 0, bytesRead);
+            int bytesLidos;
+            while ((bytesLidos = fis.read(buffer)) != -1) {
+                output.write(buffer, 0, bytesLidos);
             }
-        }
 
-        System.out.println(dis.readUTF());
+            // Aguarda a resposta do servidor após o upload
+            String resposta = input.readUTF();
+
+            if (resposta.contains("Erro")) {
+                System.out.println("Erro no upload: " + resposta);
+            } else {
+                System.out.println(resposta); // Sucesso no upload
+            }
+
+        } catch (IOException e) {
+            System.err.println("Erro ao enviar o arquivo: " + e.getMessage());
+        }
     }
 }
