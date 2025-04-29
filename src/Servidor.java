@@ -9,12 +9,6 @@ public class Servidor {
     private static final String STORAGE_ROOT = "armazenamento"; // Raiz do diretório para armazenar arquivos
     private static final Map<String, String> users = new HashMap<>(); // Mapa de usuários e senhas
 
-    // Inicialização de usuários pré-cadastrados
-    static {
-        users.put("louise", "123");
-        users.put("gabriel", "123");
-    }
-
     public static void main(String[] args) {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Servidor iniciado na porta " + PORT);
@@ -90,12 +84,31 @@ public class Servidor {
 
         // Método que realiza a autenticação do usuário
         private boolean authenticate() throws IOException {
+            String desejaCadastro = dis.readUTF(); // Recebe "s" ou "n" do cliente
+
+            if (desejaCadastro.equalsIgnoreCase("n")) {
+                // Cadastro de novo usuário
+                dos.writeUTF("Digite um nome de usuário para cadastro:");
+                String novoUsuario = dis.readUTF();
+                dos.writeUTF("Digite uma senha para cadastro:");
+                String novaSenha = dis.readUTF();
+
+                // Verifica se usuário já existe
+                if (users.containsKey(novoUsuario)) {
+                    dos.writeUTF("Usuário já existe. Escolha outro.");
+                    return false;
+                }
+
+                users.put(novoUsuario, novaSenha); // Adiciona no mapa
+                dos.writeUTF("CADASTRO_SUCESSO");
+            }
+
+            // Processo de login
             dos.writeUTF("Digite seu nome de usuário:");
             String username = dis.readUTF();
             dos.writeUTF("Digite sua senha:");
             String password = dis.readUTF();
 
-            // Verifica se o usuário e a senha são válidos
             if (users.containsKey(username) && users.get(username).equals(password)) {
                 currentUser = username;
                 dos.writeUTF("AUTENTICADO");

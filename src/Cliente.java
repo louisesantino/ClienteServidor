@@ -62,6 +62,29 @@ public class Cliente {
 
     ///Realiza a autenticação com o servidor.
     private static boolean realizarAutenticacao(DataInputStream input, DataOutputStream output) throws IOException {
+        System.out.print("Você já tem cadastro? (s/n): ");
+        String resposta = scanner.next();
+        output.writeUTF(resposta); // Envia resposta ao servidor (s ou n)
+
+        if (resposta.equalsIgnoreCase("n")) {
+            // Processo de cadastro
+            System.out.println(input.readUTF()); // Mensagem pedindo novo usuário
+            String novoUsuario = scanner.next();
+            output.writeUTF(novoUsuario);
+
+            System.out.println(input.readUTF()); // Mensagem pedindo nova senha
+            String novaSenha = scanner.next();
+            output.writeUTF(novaSenha);
+
+            String respostaCadastro = input.readUTF();
+            if (!respostaCadastro.equalsIgnoreCase("CADASTRO_SUCESSO")) {
+                System.out.println("Falha no cadastro: " + respostaCadastro);
+                return false;
+            }
+            System.out.println("Cadastro realizado com sucesso! Faça login agora.");
+        }
+
+        // Processo de login
         System.out.println(input.readUTF()); // Mensagem pedindo usuário
         String username = scanner.next();
         output.writeUTF(username);
@@ -70,11 +93,11 @@ public class Cliente {
         String password = scanner.next();
         output.writeUTF(password);
 
-        String resposta = input.readUTF();
-        return resposta.equalsIgnoreCase("AUTENTICADO");
+        String respostaLogin = input.readUTF();
+        return respostaLogin.equalsIgnoreCase("AUTENTICADO");
     }
 
-    /// Exibe o menu principal de opções.
+     /// Exibe o menu principal de opções.
     private static void exibirMenu() {
         System.out.println("\n==== MENU ====");
         System.out.println("1. Listar arquivos");
@@ -181,7 +204,7 @@ public class Cliente {
         output.writeLong(arquivo.length());
 
         try (FileInputStream fis = new FileInputStream(arquivo)) {
-            byte[] buffer = new byte[4096];
+            byte[] buffer = new byte[4096]; // cria uma memória temporarea
             int bytesLidos;
             while ((bytesLidos = fis.read(buffer)) != -1) {
                 output.write(buffer, 0, bytesLidos);
